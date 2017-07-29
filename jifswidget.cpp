@@ -38,67 +38,6 @@ void JifsWidget::resizeEvent(QResizeEvent * /* event */)
     thread.render(size());
 }
 
-/*void JifsWidget::keyPressEvent(QKeyEvent *event)
-{
-    switch (event->key()) {
-    case Qt::Key_Plus:
-        zoom(ZoomInFactor);
-        break;
-    case Qt::Key_Minus:
-        zoom(ZoomOutFactor);
-        break;
-    case Qt::Key_Left:
-        scroll(-ScrollStep, 0);
-        break;
-    case Qt::Key_Right:
-        scroll(+ScrollStep, 0);
-        break;
-    case Qt::Key_Down:
-        scroll(0, -ScrollStep);
-        break;
-    case Qt::Key_Up:
-        scroll(0, +ScrollStep);
-        break;
-    default:
-        QWidget::keyPressEvent(event);
-    }
-}
-
-#ifndef QT_NO_WHEELEVENT
-void JifsWidget::wheelEvent(QWheelEvent *event)
-{
-    int numDegrees = event->delta() / 8;
-    double numSteps = numDegrees / 15.0f;
-    zoom(pow(ZoomInFactor, numSteps));
-}
-#endif
-
-void JifsWidget::mousePressEvent(QMouseEvent *event)
-{
-    if (event->button() == Qt::LeftButton)
-        lastDragPos = event->pos();
-}
-
-void JifsWidget::mouseMoveEvent(QMouseEvent *event)
-{
-    if (event->buttons() & Qt::LeftButton) {
-        pixmapOffset += event->pos() - lastDragPos;
-        lastDragPos = event->pos();
-        update();
-    }
-}
-
-void JifsWidget::mouseReleaseEvent(QMouseEvent *event)
-{
-    if (event->button() == Qt::LeftButton) {
-        pixmapOffset += event->pos() - lastDragPos;
-        lastDragPos = QPoint();
-
-        int deltaX = (width() - pixmap.width()) / 2 - pixmapOffset.x();
-        int deltaY = (height() - pixmap.height()) / 2 - pixmapOffset.y();
-        scroll(deltaX, deltaY);
-    }
-}*/
 
 void JifsWidget::updatePixmap(const QImage &image)
 {
@@ -106,18 +45,3 @@ void JifsWidget::updatePixmap(const QImage &image)
   update();
 }
 
-/*void JifsWidget::zoom(double zoomFactor)
-{
-    curScale *= zoomFactor;
-    update();
-    thread.render(centerX, centerY, curScale, size());
-}
-
-void JifsWidget::scroll(int deltaX, int deltaY)
-{
-    centerX += deltaX * curScale;
-    centerY += deltaY * curScale;
-    update();
-    thread.render(centerX, centerY, curScale, size());
-}
-*/

@@ -1,8 +1,7 @@
 // Matvej Kotov, 2014
 // http://fractalworld.xaoc.ru/
 
-#ifndef _JIFS_H_
-#define _JIFS_H_
+#pragma once
 
 #include <ANN/ANN.h> // ANN can be downloaded here http://www.cs.umd.edu/~mount/ANN/
 #include <vector>
@@ -175,5 +174,3 @@ public:
 };
 
 } // namespace ru_xaoc_fractalworld
-
-#endif

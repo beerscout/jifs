@@ -1,5 +1,4 @@
-#ifndef RENDERTHREAD_H
-#define RENDERTHREAD_H
+#pragma once
 
 #include <atomic>
 #include <QMutex>
@@ -26,7 +25,6 @@ protected:
     void run() override;
 
 private:
-    uint rgbFromWaveLength(double wave);
 
     QMutex mutex_;
     QWaitCondition condition_;
@@ -34,5 +32,3 @@ private:
     std::atomic<bool> restart_;
     std::atomic<bool> abort_;
 };
-
-#endif // RENDERTHREAD_H

@@ -4,43 +4,86 @@
 #ifndef _JIFS_H_
 #define _JIFS_H_
 
+#include <ANN/ANN.h> // ANN can be downloaded here http://www.cs.umd.edu/~mount/ANN/
 #include <vector>
-#include <vcl.h>
-
-#include "ANN/ANN.h" // ANN can be downloaded here http://www.cs.umd.edu/~mount/ANN/
+#include <atomic>
+#include <random>
+#include <QImage>
+#include <QColor>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Geometry>
 
 namespace ru_xaoc_fractalworld
 {
 
+
 class Point
 {
-private:
-    double x_;
-    double y_;
-
 public:
-    Point(const double x, const double y);
-    double x() const;
-    double y() const;
-    double sqrdLen() const;
+  Point(const double x, const double y)
+    : p_(x, y)
+  {
+  }
+  
+  Point(const Eigen::Vector2d &v)
+    : p_(v)
+  {
+  }
+  
+  double x() const
+  {
+    return p_(0);
+  }
+  
+  double y() const
+  {
+    return p_(1);
+  }
+  
+  double sqrdLen() const
+  {
+    return p_.squaredNorm();
+  }
+  
+  const Eigen::Vector2d &operator()() const
+  {
+    return p_;
+  }
+  
+private:
+  Eigen::Vector2d p_;
 };
 
 
 class AffineTransform
 {
-private:
-    double a_;
-    double b_;
-    double c_;
-    double d_;
-    double e_;
-    double f_;
-
 public:
-    AffineTransform(const double a, const double b, const double c,
-            const double d, const double e, const double f);
-    Point apply(const Point &z) const;
-    Point applyInvert(const Point &z) const;
+  AffineTransform(
+    const double a,
+    const double b,
+    const double c,
+    const double d,
+    const double e,
+    const double f)
+  {
+    t_(0, 0) = a; t_(0, 1) = b; t_(0, 2) = e;
+    t_(1, 0) = c; t_(1, 1) = d; t_(1, 2) = f;
+    ti_ = t_.inverse(Eigen::Affine);
+  }
+  
+  Point apply(const Point &z) const
+  {
+    return Point(t_*z());
+  }
+  
+  Point applyInvert(const Point &z) const
+  {
+    return Point(ti_*z());
+  }
+  
+private:
+  Eigen::Transform<double, 2, Eigen::Affine> t_;
+  Eigen::Transform<double, 2, Eigen::Affine> ti_;
 };
 
 
@@ -54,7 +97,7 @@ public:
     AffineTransform calcStretchTransform(
                 const size_t width, const size_t height,
                 const size_t border = 40) const;
-    void draw(TCanvas *canvas, const AffineTransform &stretchTransform) const;
+    void draw(QImage &canvas, const AffineTransform &stretchTransform) const;
     Point getPoint(const size_t i) const;
     size_t getClass(const size_t i) const;
     size_t size() const;
@@ -68,7 +111,7 @@ private:
 
 public:
     explicit Colorer(const size_t maxColorNum);
-    TColor getColor(const size_t n) const;
+    QColor getColor(const size_t n) const;
 };
 
 
@@ -77,6 +120,8 @@ class IFS
 private:
      std::vector<AffineTransform> ts_;
      std::vector<double> ps_;
+     mutable std::mt19937_64 rnd_;
+     mutable std::uniform_real_distribution<double> dist_;
 
 public:
     IFS(const std::vector<AffineTransform> &ts, const std::vector<double> &ps);
@@ -85,12 +130,13 @@ public:
     size_t getRandom() const;
 
     Points apply(const size_t maxIterNum = 1000, const size_t skipIterNum = 50) const;
-    void drawR(TCanvas *canvas, const size_t width, const size_t height,
+    void drawR(QImage &canvas,
             const size_t maxIterNum = 1000, const size_t skipIterNum = 50) const;
-    void drawJ(TCanvas *canvas, const size_t width, const size_t height,
+    void drawJ(QImage &canvas,
             const Colorer &colorer,
+            std::atomic<bool> &abort,
             const size_t maxIterNum = 16, const size_t sqrdBound = 16) const;
-    void drawSplitter(TCanvas *canvas, const size_t width, const size_t height,
+    void drawSplitter(QImage &canvas,
             const Colorer &colorer) const;
 
 };
@@ -124,7 +170,7 @@ private:
 public:
     explicit Splitter(const Points &points);
     size_t getClass(const Point &z) const;
-    void draw(TCanvas *canvas, const size_t width, const size_t height,
+    void draw(QImage &canvas,
             const Colorer &colorer) const;
 };
 

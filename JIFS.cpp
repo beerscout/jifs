@@ -6,60 +6,6 @@
 namespace ru_xaoc_fractalworld
 {
 
-Point::Point(const double x, const double y)
-    : x_(x)
-    , y_(y)
-{ }
-
-
-double Point::x() const
-{
-    return x_;
-}
-
-
-double Point::y() const
-{
-     return y_;
-}
-
-
-double Point::sqrdLen() const
-{
-    return x_*x_ + y_*y_;
-}
-
-
-AffineTransform::AffineTransform(
-        const double a,
-        const double b,
-        const double c,
-        const double d,
-        const double e,
-        const double f)
-    : a_(a)
-    , b_(b)
-    , c_(c)
-    , d_(d)
-    , e_(e)
-    , f_(f)
-{ }
-
-
-Point AffineTransform::apply(const Point &z) const
-{
-    return Point(a_*z.x() + b_*z.y() + e_, c_*z.x() + d_*z.y() + f_);
-}
-
-
-Point AffineTransform::applyInvert(const Point &z) const
-{
-    const double u = z.x() - e_;
-    const double v = z.y() - f_;
-    const double det = a_*d_ - c_*b_;
-    return Point((d_*u - b_*v) / det, (-c_*u + a_*v) / det);
-}
-
 
 Points::Points(const std::vector<std::pair<Point, size_t> > &points)
     : points_(points)
@@ -96,11 +42,12 @@ AffineTransform Points::calcStretchTransform(
 }
 
 
-void Points::draw(TCanvas *canvas, const AffineTransform &stretchTransform) const
+void Points::draw(QImage &canvas, const AffineTransform &stretchTransform) const
 {
     for (size_t i = 0; i < points_.size(); ++i) {
         Point z = stretchTransform.apply(points_[i].first);
-        canvas->Pixels[z.x()][z.y()] = clBlack;
+        QRgb *line = reinterpret_cast<QRgb *>(canvas.scanLine(int(z.y())));
+        line[int(z.x())] = Qt::black;
     }
 }
 
@@ -128,7 +75,7 @@ Colorer::Colorer(const size_t maxColorNum)
 { }
 
 
-TColor Colorer::getColor(const size_t n) const
+QColor Colorer::getColor(const size_t n) const
 {
     const double x = 6. * (n % maxColorNum_) / maxColorNum_;
     size_t r;
@@ -159,13 +106,14 @@ TColor Colorer::getColor(const size_t n) const
         g = 0;
         r = 255 - 255*(x - 5);
     }
-    return TColor(r + 256*g + 256*256*b);
+    return QColor(r, g, b);
 }
 
 
 IFS::IFS(const std::vector<AffineTransform> &ts, const std::vector<double> &ps)
     : ts_(ts)
     , ps_(ps)
+    , dist_(0, 1)
 {
 }
 
@@ -184,7 +132,8 @@ Point IFS::applyInvert(const size_t i, const Point &z) const
 
 size_t IFS::getRandom() const
 {
-    const double x = 1. * rand() / RAND_MAX;
+    //const double x = 1. * rand() / RAND_MAX;
+    const double x = dist_(rnd_);
     size_t i = 0;
     double s = ps_[0];
     for (; i < ps_.size() - 1;) {
@@ -214,12 +163,12 @@ Points IFS::apply(const size_t maxIterNum, const size_t skipIterNum) const
 
 
 void IFS::drawR(
-         TCanvas *canvas,
-         const size_t width,
-         const size_t height,
+         QImage &canvas,
          const size_t maxIterNum,
          const size_t skipIterNum) const
 {
+    int width = canvas.width();
+    int height = canvas.height();
     const Points points = this->apply(maxIterNum, skipIterNum);
     const AffineTransform stretchTransform = points.calcStretchTransform(width, height);
     points.draw(canvas, stretchTransform);
@@ -227,18 +176,22 @@ void IFS::drawR(
 
 
 void IFS::drawJ(
-        TCanvas *canvas,
-        const size_t width,
-        const size_t height,
+        QImage &canvas,
         const Colorer &colorer,
+        std::atomic<bool> &abort,
         const size_t maxIterNum,
         const size_t sqrdBound) const
 {
+    int width = canvas.width();
+    int height = canvas.height();
     const Points points = this->apply();
     const AffineTransform stretchTransform = points.calcStretchTransform(width, height);
     const Splitter splitter(points);
-    for (size_t y = 0; y < height; ++y) {
-        for (size_t x = 0; x < width; ++x) {
+    for (int y = 0; y < height; ++y) {
+        QRgb *line = reinterpret_cast<QRgb *>(canvas.scanLine(y));
+        if ( abort.load() )
+          break;
+        for (int x = 0; x < width; ++x) {
                 Point z(x, y);
                 z = stretchTransform.applyInvert(z);
                 size_t iter = 0;
@@ -247,22 +200,22 @@ void IFS::drawJ(
                      z = this->applyInvert(cl, z);
                      iter += 1;
                 }
-                canvas->Pixels[x][y] = colorer.getColor(iter);
+                line[x] = colorer.getColor(iter).rgb();
         }
     }
 }
 
 
 void IFS::drawSplitter(
-        TCanvas *canvas,
-        const size_t width,
-        const size_t height,
+        QImage &canvas,
         const Colorer &colorer) const
 {
+    //int width = canvas.width();
+    //int height = canvas.height();
     const Points points = this->apply();
-    const AffineTransform stretchTransform = points.calcStretchTransform(width, height);
+    //const AffineTransform stretchTransform = points.calcStretchTransform(width, height);
     const Splitter splitter(points);
-    splitter.draw(canvas, width, height, colorer);
+    splitter.draw(canvas, colorer);
 }
 
 
@@ -311,17 +264,19 @@ size_t Splitter::getClass(const Point &z) const
 
 
 void Splitter::draw(
-        TCanvas *canvas,
-        const size_t width,
-        const size_t height,
+        QImage &canvas,
         const Colorer &colorer) const
 {
+    int width = canvas.width();
+    int height = canvas.height();
     const AffineTransform stretchTransform = points_.calcStretchTransform(width, height);
-    for (size_t y = 0; y < height; ++y) {
-        for (size_t x = 0; x < width; ++x) {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
                 const Point z = stretchTransform.applyInvert(Point(x, y));
                 size_t cl = this->getClass(z);
-                canvas->Pixels[x][y] = colorer.getColor(cl);
+                //canvas.setPixelColor(x, y, colorer.getColor(cl));
+                QRgb *line = reinterpret_cast<QRgb *>(canvas.scanLine(y));
+                line[x] = colorer.getColor(cl).rgb();
         }
     }
 }
